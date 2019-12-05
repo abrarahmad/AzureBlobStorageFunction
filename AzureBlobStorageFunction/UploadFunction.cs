@@ -5,6 +5,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -24,12 +25,10 @@ namespace AzureBlobStorageFunction
             try
             {
                 var files = req.Form.Files;
-                var tasks = files.AsParallel()
-                    .Select(async file =>
-                    {
-                        await UploadFile(context, file, log).ConfigureAwait(false);
-                    });
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                foreach (var file in files)
+                {
+                    await UploadFile(context, file, log).ConfigureAwait(false);
+                }
                 log.LogInformation("Http request processed has done.");
                 return new OkObjectResult($"Files Count ({files.Count})  and names => [{string.Join(",", files.Select(s => s.FileName).ToList())}]");
 
@@ -49,8 +48,9 @@ namespace AzureBlobStorageFunction
             await container.CreateIfNotExistsAsync().ConfigureAwait(false);
             CloudBlockBlob blockBlob = container.GetBlockBlobReference(file.FileName);
 
-            using var memoryStream = file.OpenReadStream();
-            await blockBlob.UploadFromStreamAsync(memoryStream, memoryStream.Length).ConfigureAwait(false);
+            using MemoryStream memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream).ConfigureAwait(false);
+            await blockBlob.UploadFromStreamAsync(memoryStream).ConfigureAwait(false);
             log.LogInformation($"Uploading done for file:{file.FileName}");
 
 
