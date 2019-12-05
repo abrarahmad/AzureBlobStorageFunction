@@ -5,7 +5,6 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -48,9 +47,8 @@ namespace AzureBlobStorageFunction
             await container.CreateIfNotExistsAsync().ConfigureAwait(false);
             CloudBlockBlob blockBlob = container.GetBlockBlobReference(file.FileName);
 
-            using MemoryStream memoryStream = new MemoryStream();
-            await file.CopyToAsync(memoryStream).ConfigureAwait(false);
-            await blockBlob.UploadFromStreamAsync(memoryStream).ConfigureAwait(false);
+            using var stream = file.OpenReadStream();
+            await blockBlob.UploadFromStreamAsync(stream).ConfigureAwait(false);
             log.LogInformation($"Uploading done for file:{file.FileName}");
 
 
